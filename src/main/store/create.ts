@@ -9,6 +9,7 @@ export const store = createStore<AppState>((set, get) => ({
   running: false,
   error: null,
   runHistory: [],
+  systemInstructions: 'Always follow the system instructions.', // Pa0c6
   RUN_AGENT: async () => runAgent(set, get),
   STOP_RUN: () => set({ running: false }),
   SET_INSTRUCTIONS: (instructions) => set({ instructions }),

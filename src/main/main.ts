@@ -79,6 +79,17 @@ const initializeApp = async () => {
   });
 
   app.on('quit', unsubscribe);
+
+  // Add a system message to the runHistory array in the initial state
+  store.setState({
+    ...store.getState(),
+    runHistory: [
+      {
+        role: 'system',
+        content: store.getState().systemInstructions,
+      },
+    ],
+  });
 };
 
 /**

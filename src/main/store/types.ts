@@ -19,6 +19,7 @@ export type AppState = {
   fullyAuto: boolean;
   running: boolean;
   error: string | null;
+  systemInstructions: string | null;
 
   runHistory: BetaMessageParam[];
 
