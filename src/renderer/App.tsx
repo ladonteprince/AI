@@ -27,16 +27,21 @@ function Main() {
     running,
     error,
     runHistory,
+    systemInstructions: savedSystemInstructions,
   } = useStore();
   // Add local state for instructions
   const [localInstructions, setLocalInstructions] = React.useState(
     savedInstructions ?? '',
+  );
+  const [localSystemInstructions, setLocalSystemInstructions] = React.useState(
+    savedSystemInstructions ?? '',
   );
   const toast = useToast(); // Add toast hook
 
   const startRun = () => {
     // Update Zustand state before starting the run
     dispatch({ type: 'SET_INSTRUCTIONS', payload: localInstructions });
+    dispatch({ type: 'SET_SYSTEM_INSTRUCTIONS', payload: localSystemInstructions });
     dispatch({ type: 'RUN_AGENT', payload: null });
   };
 
@@ -141,6 +146,41 @@ function Main() {
           disabled={running}
           onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => {
             setLocalInstructions(e.target.value);
+            // Auto-adjust height
+            e.target.style.height = 'auto';
+            e.target.style.height = `${e.target.scrollHeight}px`;
+          }}
+          onKeyDown={handleKeyDown}
+        />
+        <Box
+          as="textarea"
+          placeholder="Enter system instructions here..."
+          width="100%"
+          height="auto"
+          minHeight="48px"
+          p={4}
+          borderRadius="16px"
+          border="1px solid"
+          borderColor="rgba(112, 107, 87, 0.5)"
+          verticalAlign="top"
+          resize="none"
+          overflow="hidden"
+          sx={{
+            '-webkit-app-region': 'no-drag',
+            transition: 'box-shadow 0.2s, border-color 0.2s',
+            _hover: {
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.05)',
+            },
+            _focus: {
+              borderColor: 'blackAlpha.500',
+              outline: 'none',
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+            },
+          }}
+          value={localSystemInstructions}
+          disabled={running}
+          onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => {
+            setLocalSystemInstructions(e.target.value);
             // Auto-adjust height
             e.target.style.height = 'auto';
             e.target.style.height = `${e.target.scrollHeight}px`;
