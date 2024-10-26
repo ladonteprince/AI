@@ -11,8 +11,13 @@ import {
   extendTheme,
   Spinner,
   useToast,
+  Textarea,
+  IconButton,
+  Collapse,
+  Divider,
+  useDisclosure,
 } from '@chakra-ui/react';
-import { FaGithub, FaStop, FaTrash } from 'react-icons/fa';
+import { FaGithub, FaStop, FaTrash, FaChevronDown, FaChevronUp } from 'react-icons/fa';
 import { HiMinus, HiX } from 'react-icons/hi';
 import { Route, MemoryRouter as Router, Routes } from 'react-router-dom';
 import { useDispatch } from 'zutron';
@@ -51,6 +56,14 @@ function Main() {
       startRun();
     }
   };
+
+  const { isOpen, onToggle } = useDisclosure({
+    defaultIsOpen: JSON.parse(localStorage.getItem('systemInstructionsCollapsed') || 'false'),
+  });
+
+  React.useEffect(() => {
+    localStorage.setItem('systemInstructionsCollapsed', JSON.stringify(isOpen));
+  }, [isOpen]);
 
   return (
     <Box
@@ -152,41 +165,53 @@ function Main() {
           }}
           onKeyDown={handleKeyDown}
         />
-        <Box
-          as="textarea"
-          placeholder="Enter system instructions here..."
-          width="100%"
-          height="auto"
-          minHeight="48px"
-          p={4}
-          borderRadius="16px"
-          border="1px solid"
-          borderColor="rgba(112, 107, 87, 0.5)"
-          verticalAlign="top"
-          resize="none"
-          overflow="hidden"
-          sx={{
-            '-webkit-app-region': 'no-drag',
-            transition: 'box-shadow 0.2s, border-color 0.2s',
-            _hover: {
-              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.05)',
-            },
-            _focus: {
-              borderColor: 'blackAlpha.500',
-              outline: 'none',
-              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
-            },
-          }}
-          value={localSystemInstructions}
-          disabled={running}
-          onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => {
-            setLocalSystemInstructions(e.target.value);
-            // Auto-adjust height
-            e.target.style.height = 'auto';
-            e.target.style.height = `${e.target.scrollHeight}px`;
-          }}
-          onKeyDown={handleKeyDown}
-        />
+        <Box w="100%">
+          <HStack justify="space-between" align="center" w="100%">
+            <Heading size="sm">System Instructions</Heading>
+            <IconButton
+              icon={isOpen ? <FaChevronUp /> : <FaChevronDown />}
+              onClick={onToggle}
+              aria-label="Toggle System Instructions"
+              size="sm"
+            />
+          </HStack>
+          <Collapse in={isOpen} animateOpacity>
+            <Textarea
+              placeholder="Enter system instructions here..."
+              width="100%"
+              height="auto"
+              minHeight="48px"
+              p={4}
+              borderRadius="16px"
+              border="1px solid"
+              borderColor="rgba(112, 107, 87, 0.5)"
+              verticalAlign="top"
+              resize="none"
+              overflow="hidden"
+              sx={{
+                '-webkit-app-region': 'no-drag',
+                transition: 'box-shadow 0.2s, border-color 0.2s',
+                _hover: {
+                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.05)',
+                },
+                _focus: {
+                  borderColor: 'blackAlpha.500',
+                  outline: 'none',
+                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+                },
+              }}
+              value={localSystemInstructions}
+              disabled={running}
+              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => {
+                setLocalSystemInstructions(e.target.value);
+                // Auto-adjust height
+                e.target.style.height = 'auto';
+                e.target.style.height = `${e.target.scrollHeight}px`;
+              }}
+              onKeyDown={handleKeyDown}
+            />
+          </Collapse>
+        </Box>
         <HStack justify="space-between" align="center" w="100%">
           <HStack spacing={2}>
             <Switch
