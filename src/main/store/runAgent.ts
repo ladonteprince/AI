@@ -9,6 +9,7 @@ import { anthropic } from './anthropic';
 import { AppState, NextAction } from './types';
 import { extractAction } from './extractAction';
 import { hideWindowBlock, showWindow } from '../window';
+import { firecrawl } from './firecrawl';
 
 const MAX_STEPS = 50;
 
@@ -133,6 +134,24 @@ const promptForAction = async (
           required: ['success'],
         },
       },
+      {
+        name: 'firecrawl',
+        description: 'Use this tool to perform web scraping tasks.',
+        input_schema: {
+          type: 'object',
+          properties: {
+            url: {
+              type: 'string',
+              description: 'The URL to scrape',
+            },
+            search: {
+              type: 'string',
+              description: 'The search parameter for scraping',
+            },
+          },
+          required: ['url', 'search'],
+        },
+      },
     ],
     system: systemInstructions ?? `The user will ask you to perform a task and you should use their computer to do so. After each step, take a screenshot and carefully evaluate if you have achieved the right outcome. Explicitly show your thinking: "I have evaluated step X..." If not correct, try again. Only when you confirm a step was executed correctly should you move on to the next one. Note that you have to click into the browser address bar before typing a URL. You should always call a tool! Always return a tool call. Remember call the finish_run tool when you have achieved the goal of the task. Do not explain you have finished the task, just call the tool. Use keyboard shortcuts to navigate whenever possible.`,
     // tool_choice: { type: 'any' },
@@ -194,8 +213,119 @@ export const performAction = async (action: NextAction) => {
     case 'screenshot':
       // Don't do anything since we always take a screenshot after each step
       break;
+    case 'firecrawl':
+      const { url, search } = action;
+      const mapWebsite = await firecrawl.mapUrl(url, { search });
+      const topLinks = mapWebsite.links.slice(0, 2);
+      const batchScrapeResult = await firecrawl.batchScrapeUrls(topLinks, { formats: ['markdown'] });
+      return batchScrapeResult;
     default:
       throw new Error(`Unsupported action: ${action.type}`);
+  }
+};
+
+const findRelevantPageViaMap = async (objective: string, url: string) => {
+  try {
+    console.log(`Understood. The objective is: ${objective}`);
+    console.log(`Initiating search on the website: ${url}`);
+
+    const mapPrompt = `
+      The map function generates a list of URLs from a website and it accepts a search parameter. Based on the objective of: ${objective}, come up with a 1-2 word search parameter that will help us find the information we need. Only respond with 1-2 words nothing else.
+    `;
+
+    console.log('Analyzing objective to determine optimal search parameter...');
+    const completion = await anthropic.beta.messages.create({
+      model: 'claude-3-5-sonnet-20241022',
+      max_tokens: 1000,
+      temperature: 0,
+      system: 'You are an expert web crawler. Respond with the best search parameter.',
+      messages: [
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'text',
+              text: mapPrompt,
+            },
+          ],
+        },
+      ],
+    });
+
+    const mapSearchParameter = completion.content[0].text;
+    console.log(`Optimal search parameter identified: ${mapSearchParameter}`);
+
+    console.log('Mapping website using the identified search parameter...');
+    const mapWebsite = await firecrawl.mapUrl(url, { search: mapSearchParameter });
+    console.log('Website mapping completed successfully.');
+    console.log(`Located ${mapWebsite.links.length} relevant links.`);
+    return mapWebsite.links;
+  } catch (error) {
+    console.error(`Error encountered during relevant page identification: ${error}`);
+    return null;
+  }
+};
+
+const findObjectiveInTopPages = async (mapWebsite: string[], objective: string) => {
+  try {
+    const topLinks = mapWebsite.slice(0, 2);
+    console.log(`Proceeding to analyze top ${topLinks.length} links: ${topLinks}`);
+
+    const batchScrapeResult = await firecrawl.batchScrapeUrls(topLinks, { formats: ['markdown'] });
+    console.log('Batch page scraping completed successfully.');
+
+    for (const scrapeResult of batchScrapeResult.data) {
+      const checkPrompt = `
+        Given the following scraped content and objective, determine if the objective is met.
+        If it is, extract the relevant information in a simple and concise JSON format. Use only the necessary fields and avoid nested structures if possible.
+        If the objective is not met with confidence, respond with 'Objective not met'.
+
+        Objective: ${objective}
+        Scraped content: ${scrapeResult.markdown}
+
+        Remember:
+        1. Only return JSON if you are confident the objective is fully met.
+        2. Keep the JSON structure as simple and flat as possible.
+        3. Do not include any explanations or markdown formatting in your response.
+      `;
+
+      const completion = await anthropic.beta.messages.create({
+        model: 'claude-3-5-sonnet-20241022',
+        max_tokens: 1000,
+        temperature: 0,
+        system: 'You are an expert web crawler. Respond with the relevant information in JSON format.',
+        messages: [
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'text',
+                text: checkPrompt,
+              },
+            ],
+          },
+        ],
+      });
+
+      const result = completion.content[0].text;
+
+      if (result !== 'Objective not met') {
+        console.log('Objective potentially fulfilled. Relevant information identified.');
+        try {
+          return JSON.parse(result);
+        } catch (error) {
+          console.error('Error in parsing response. Proceeding to next page...');
+        }
+      } else {
+        console.log('Objective not met on this page. Proceeding to next link...');
+      }
+    }
+
+    console.error('All available pages analyzed. Objective not fulfilled in examined content.');
+    return null;
+  } catch (error) {
+    console.error(`Error encountered during page analysis: ${error}`);
+    return null;
   }
 };
 

@@ -17,6 +17,41 @@ I wanted to see how good Claude's new [computer use](https://www.anthropic.com/n
 5.  `npm start`
 6.  Prompt the model to do something interesting on your computer!
 
+### Setting up FirecrawlApp
+
+1. Add `firecrawl` as a dependency in your `package.json` file:
+   ```json
+   {
+     "dependencies": {
+       "firecrawl": "^1.0.0"
+     }
+   }
+   ```
+2. Create a new file `src/main/store/firecrawl.ts` to initialize `FirecrawlApp`:
+   ```typescript
+   import { FirecrawlApp } from 'firecrawl';
+   import dotenv from 'dotenv';
+
+   dotenv.config();
+
+   export const firecrawl = new FirecrawlApp({
+     apiKey: process.env.FIRECRAWL_API_KEY,
+   });
+   ```
+3. Update `src/main/store/runAgent.ts` to include functions for web scraping using `FirecrawlApp`.
+
+### Usage instructions for FirecrawlApp
+
+1. Import `FirecrawlApp` from `firecrawl.ts` in your code:
+   ```typescript
+   import { firecrawl } from './firecrawl';
+   ```
+2. Use the `firecrawl` instance to perform web scraping tasks. For example:
+   ```typescript
+   const result = await firecrawl.scrape('https://example.com');
+   console.log(result);
+   ```
+
 ### Supported systems
 
 - MacOS
